@@ -5,10 +5,13 @@ save, and copy colours interactively using a three-pane tmux layout with live pr
 
 This was inspired by [@Axlefublr](https://github.com/Axlefublr)'s
 [`coloring-book.fish`](https://github.com/Axlefublr/dotfiles/blob/main/lai/coloring-book.fish),
-with all the ushell/nuson replaced with json. Her implimentation is very clean
+with all the ushell/nuson replaced with json. Her implementation is very clean
 and simple with it just being an inline script, but i wanted a little more control
 over how i interacted with it, like making the fzf menu stay on screen,
 so i made this!
+
+![Screenshot of the three-pane layout, with tpink selected from the palette, being
+displayed on the right](images/landing-pink.webp)
 
 ## Dependencies
 
@@ -69,27 +72,22 @@ and sets `PALETTE_FILE=./test-palette.json`
 
 `palette` creates a three-pane tmux layout from the current pane:
 
-```
-+----------------------------------+----------------------------------+
-|  Colour grid (main pane)         |  Preview pane                    |
-|  Shows all named colours in      |  Pastel swatch, hex values, etc  |
-|  a side-by-side list             |  - preview on fzf focus          |
-|                                  |  - command / edit modes          |
-|----------------------------------+----------------------------------|
-|                      FZF picker (child pane)                        |
-|                    - fuzzy search colour names                      |
-|                    - "Enter a new color" option                     |
-+----------------------------------+----------------------------------+
-```
+![A gif showing the initial runtime of palette](images/palette-demo.gif)
 
 - **Browse:** move through the fzf list in the bottom pane. The preview pane
 updates live.
 - **Select:** press Enter on a colour name to enter command mode, or on
 "Enter a new color" to start from a random hex.
 - **Command mode:**  copy values to clipboard; pair with another colour; open
-the JSON file in `$EDITOR`.
+the JSON file in `$EDITOR`, enter Edit Mode.
+![Screenshot of searching for 'blue' in the palette, then selecting it to enter
+command mode](images/search-command-blue.webp)
 - **Edit mode:** adjust hue, saturation, lightness, RGB channels, then
 write (save) the colour to your palette file.
+![Creating a new colour from a colour already in the palette and saving it
+as a new colour](images/editing-new-demo.gif)
+- **Pair Mode:** pick a colour from the palette to use as a reference/pair
+![Screenshot of using 'p' to pick 'mauve' as the pair for 'base'](images/paired-base-mauve.webp)
 
 When you press `z` in command or edit mode, focus returns to the fzf picker.
 > [!WARNING]
@@ -132,8 +130,10 @@ When you press `z` in command or edit mode, focus returns to the fzf picker.
 - If you edited an **existing named colour**, pressing `w` shows
 `Overwrite "name"? [y/Name]`. Type `y` to overwrite, or type a new name to
 save as a different entry.
+![Editing an existing colour and overwriting it](images/editing-overwrite-demo.gif)
 - If you used `i` (input hex) or selected **"Enter a new color"**, pressing `w`
 prompts `Name:` directly.
+![Selecting a random colour, and saving as a new entry](images/editing-random-demo.gif)
 - If you type a name that already exists while saving a new colour, the existing
 entry is overwritten (the JSON is updated in-place, not duplicated).
 
