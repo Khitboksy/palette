@@ -5,7 +5,7 @@ save, and copy colours interactively using a three-pane tmux layout with live pr
 
 This was inspired by [@Axlefublr](https://github.com/Axlefublr)'s
 [`coloring-book.fish`](https://github.com/Axlefublr/dotfiles/blob/main/lai/coloring-book.fish),
-with all the ushell/nuson replaced with json. Her implementation is very clean
+with all the nushell/nuson replaced with json. Her implementation is very clean
 and simple with it just being an inline script, but i wanted a little more control
 over how i interacted with it, like making the fzf menu stay on screen,
 so i made this!
@@ -47,13 +47,6 @@ palette
 
 The first time you run `palette`, it will create `~/.palette.json` if it doesn't
 exist (it needs at least an empty array `[]`).
-
-> [!IMPORTANT]
-> Due to how the program does tmux integration, killing the program with a sigterm,
-> or killing the terminal window might lead to buildup in `/tmp/`.  
-> The correct way to kill the process is by pressing 'escape' in the fzf window,
-> or killing the fzf pane via tmux keybinds. This ensures the process exits gracefully,
-> and performs [cleanup](#cleanup).
 
 ### NixOS Users
 
@@ -225,9 +218,9 @@ No X11 clipboard fallback is included.
 ### Cleanup
 
 The `palette` function creates temp files in `/tmp/` with names like
-`palette-*.XXXXXX`. These are cleaned up when the function exits. If palette
+`palette-*.XXXXXX`. These are cleaned up when the function starts and exits. If palette
 crashes or is killed, stale temp files may remain; they are harmless and will
-be cleaned on next reboot.
+be cleaned next time palette is run.
 
 ## Licence
 

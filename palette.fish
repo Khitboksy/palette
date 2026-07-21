@@ -121,7 +121,8 @@ function _cb_save_color -a hex name
         'if any(.[]; .[0] == $n)
          then map(if .[0] == $n then [$n, $h] else . end)
          else . + [[$n, $h]] end' \
-        $PALETTE_FILE >$PALETTE_FILE.tmp
+        $PALETTE_FILE \
+        | jq -r '24 as $w | [.[] | "  [\"\(.[0])\", \(" " * ([$w - (.[0] | length), 0] | max))\"\(.[1])\"]"] as $lines | "[\n" + ($lines | join(",\n")) + "\n]"' >$PALETTE_FILE.tmp
     and mv $PALETTE_FILE.tmp $PALETTE_FILE
     or begin
         rm -f $PALETTE_FILE.tmp 2>/dev/null
@@ -154,6 +155,22 @@ end
 
 # ── Tmux three-pane palette layout ──────────────────────────────────────
 function palette
+    # If not in tmux, spawn a dedicated tmux session
+    if not set -q TMUX
+        set -l pal_src (status filename 2>/dev/null)
+        set -l pal_session "palette-$PPID"
+        if test -n "$pal_src" -a -f "$pal_src"
+            tmux new-session -d -s "$pal_session" "source $pal_src; and palette"
+        else
+            tmux new-session -d -s "$pal_session" palette
+        end
+        tmux attach-session -t "$pal_session"
+        while tmux has-session -t "$pal_session" 2>/dev/null
+            sleep 0.5
+        end
+        return
+    end
+
     # Find the inline script next to this file
     set -l script_dir (dirname (status filename))
     set -l inline_source "$script_dir/palette-inline.fish"
@@ -166,27 +183,45 @@ function palette
 
     set -l current_pane (tmux display-message -p '#{pane_id}')
 
+    # ── Clean up any leftover files from previous crashed sessions ──
+    for f in (ls /tmp/ 2>/dev/null | string match 'palette-*')
+        rm -f "/tmp/$f"
+    end
+
+    # ── Ensure palette file exists (create with defaults if not) ──
+    if not test -f $PALETTE_FILE
+        printf '[\n' >$PALETTE_FILE
+        printf '  ["tblue",                    "#5BCEFA"],\n' >>$PALETTE_FILE
+        printf '  ["tpink",                    "#F5A9B8"],\n' >>$PALETTE_FILE
+        printf '  ["white",                    "#ffffff"],\n' >>$PALETTE_FILE
+        printf '  ["black",                    "#000000"],\n' >>$PALETTE_FILE
+        printf '  ["rgb-blue",                 "#0000ff"],\n' >>$PALETTE_FILE
+        printf '  ["rgb-red",                  "#ff0000"],\n' >>$PALETTE_FILE
+        printf '  ["rgb-green",                "#00ff00"]\n' >>$PALETTE_FILE
+        printf ']\n' >>$PALETTE_FILE
+    end
+
     # ── Temp files for IPC ──
-    set -l sel_file      (mktemp /tmp/palette-sel.XXXXXX)
-    set -l cmt_file      (mktemp /tmp/palette-commit.XXXXXX)
-    set -l res_file      (mktemp -u /tmp/palette-result.XXXXXX)
-    set -l chld_id_file  (mktemp /tmp/palette-child-id.XXXXXX)
-    set -l prev_id_file  (mktemp /tmp/palette-preview-id.XXXXXX)
-    set -l names_file    (mktemp /tmp/palette-names.XXXXXX)
-    set -l restart_file  (mktemp /tmp/palette-restart.XXXXXX)
+    set -l sel_file (mktemp /tmp/palette-sel.XXXXXX)
+    set -l cmt_file (mktemp /tmp/palette-commit.XXXXXX)
+    set -l res_file (mktemp -u /tmp/palette-result.XXXXXX)
+    set -l chld_id_file (mktemp /tmp/palette-child-id.XXXXXX)
+    set -l prev_id_file (mktemp /tmp/palette-preview-id.XXXXXX)
+    set -l names_file (mktemp /tmp/palette-names.XXXXXX)
+    set -l restart_file (mktemp -u /tmp/palette-restart.XXXXXX)
 
     # ── Write initial colour names to names_file ──
-    printf '%s\n' '--- Enter a new color ---' > $names_file
-    jq -r '.[] | .[0]' $PALETTE_FILE >> $names_file
+    printf '%s\n' '--- Enter a new color ---' >$names_file
+    jq -r '.[] | .[0]' $PALETTE_FILE >>$names_file
 
     # ── Config file: IPC paths for the inline script ──
     set -l cfg_file (mktemp /tmp/palette-cfg.XXXXXX)
-    printf '%s\n' "$sel_file"     > "$cfg_file"
-    printf '%s\n' "$cmt_file"     >> "$cfg_file"
-    printf '%s\n' "$chld_id_file" >> "$cfg_file"
-    printf '%s\n' "$prev_id_file" >> "$cfg_file"
-    printf '%s\n' "$names_file"   >> "$cfg_file"  # line 5
-    printf '%s\n' "$restart_file" >> "$cfg_file"  # line 6
+    printf '%s\n' "$sel_file" >"$cfg_file"
+    printf '%s\n' "$cmt_file" >>"$cfg_file"
+    printf '%s\n' "$chld_id_file" >>"$cfg_file"
+    printf '%s\n' "$prev_id_file" >>"$cfg_file"
+    printf '%s\n' "$names_file" >>"$cfg_file" # line 5
+    printf '%s\n' "$restart_file" >>"$cfg_file" # line 6
 
     # ── Copy inline script to temp so tmux can find it ──
     set -l inline_script (mktemp /tmp/palette-inline.XXXXXX)
@@ -201,62 +236,36 @@ function palette
         | fzf --height=100% --no-sort -e --no-mouse --border --cycle --layout=reverse \
               --bind='focus:execute-silent(echo {} > $sel_file.tmp; and mv $sel_file.tmp $sel_file)' \
               --bind='enter:execute-silent(echo {} > $cmt_file.tmp; and mv $cmt_file.tmp $cmt_file; and tmux select-pane -t (cat $prev_id_file))' \
+              --bind='f5:reload(cat $names_file)' \
               > $res_file.tmp; and mv $res_file.tmp $res_file"
 
     set -l child_pane (tmux split-window -v -p 30 -P -F '#{pane_id}' \
         -t $current_pane "$picker_cmd")
-    echo $child_pane > $chld_id_file
+    echo $child_pane >$chld_id_file
 
     set -l preview_pane (tmux split-window -h -p 59 -P -F '#{pane_id}' \
         -t $current_pane \
         "env PALETTE_FILE=$PALETTE_FILE PALETTE_CFG=$cfg_file fish $inline_script")
-    echo $preview_pane > $prev_id_file
+    echo $preview_pane >$prev_id_file
 
     tmux select-pane -t $child_pane
     _cb_show_all
     set_color normal
     echo
 
-    # ── Wait for fzf to finish (handles live restarts too) ──
+    # ── Wait for fzf to finish ──
     while true
         if test -f $res_file
             break
         end
 
-        # ── Restart fzf when inline script signals a save ──
+        # ── Refresh grid when inline script signals a save ──
         if test -f $restart_file
             rm -f $restart_file
-
-            # Kill old fzf pane
-            tmux kill-pane -t $child_pane 2>/dev/null; or true
-
-            # Update names_file from palette (inline script already wrote it)
-            printf '%s\n' '--- Enter a new color ---' > $names_file
-            jq -r '.[] | .[0]' $PALETTE_FILE >> $names_file
-
-            # Clear any stale result file
-            rm -f $res_file $res_file.tmp
-
-            # Wait for pane to fully die
-            sleep 0.3
-
-            # Start new fzf pane with updated names
-            set -l picker_cmd "cat $names_file \
-                | fzf --height=100% --no-sort -e --no-mouse --border --cycle --layout=reverse \
-                      --bind='focus:execute-silent(echo {} > $sel_file.tmp; and mv $sel_file.tmp $sel_file)' \
-                      --bind='enter:execute-silent(echo {} > $cmt_file.tmp; and mv $cmt_file.tmp $cmt_file; and tmux select-pane -t (cat $prev_id_file))' \
-                      > $res_file.tmp; and mv $res_file.tmp $res_file"
-
-            set -l child_pane (tmux split-window -v -p 30 -P -F '#{pane_id}' \
-                -t $current_pane "$picker_cmd")
-            echo $child_pane > $chld_id_file
-
-            # Refresh the colour grid in the main pane
             clear
             _cb_show_all
             set_color normal
             echo
-
             continue
         end
 
@@ -270,9 +279,9 @@ function palette
     # ── Cleanup ──
     tmux kill-pane -t $preview_pane 2>/dev/null; or true
     rm -f $sel_file $sel_file.tmp \
-          $cmt_file $cmt_file.tmp \
-          $res_file $res_file.tmp \
-          $chld_id_file $prev_id_file \
-          $names_file $restart_file \
-          $cfg_file $inline_script 2>/dev/null
+        $cmt_file $cmt_file.tmp \
+        $res_file $res_file.tmp \
+        $chld_id_file $prev_id_file \
+        $names_file $restart_file \
+        $cfg_file $inline_script 2>/dev/null
 end

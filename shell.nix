@@ -1,7 +1,6 @@
 {
-  pkgs,
-  lib,
-  ...
+  pkgs ? import <nixpkgs> { },
+  lib ? pkgs.lib,
 }:
 
 pkgs.mkShell {
@@ -23,6 +22,10 @@ pkgs.mkShell {
   # Replace current shell with fish that sources palette.fish and runs palette
   #   If you do not have fish installed, its fresh, if you do have fish installed its your config+palette.
   shellHook = ''
-    exec ${lib.getExe pkgs.fish} -c "source ${toString ./.}/palette.fish; and palette"
+    exec ${lib.getExe pkgs.fish} -c "
+        source ${toString ./.}/palette.fish
+        clear
+        and palette
+    "
   '';
 }

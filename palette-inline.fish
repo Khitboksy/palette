@@ -233,13 +233,16 @@ while true
                 'if any(.[]; .[0] == $n)
                  then map(if .[0] == $n then [$n, $h] else . end)
                  else . + [[$n, $h]] end' \
-                $PALETTE_FILE >$PALETTE_FILE.tmp
+                $PALETTE_FILE \
+            | jq -r '24 as $w | [.[] | "  [\"\(.[0])\", \(" " * ([$w - (.[0] | length), 0] | max))\"\(.[1])\"]"] as $lines | "[\n" + ($lines | join(",\n")) + "\n]"' \
+                >$PALETTE_FILE.tmp
             and mv $PALETTE_FILE.tmp $PALETTE_FILE
             and begin
                 set -g _cb_status "$save_name written"
                 printf '%s\n' '--- Enter a new color ---' >$names_file
                 jq -r '.[] | .[0]' $PALETTE_FILE >>$names_file
                 echo restart >$restart_file
+                tmux send-keys -t $chld_pane F5
             end
             or begin
                 rm -f $PALETTE_FILE.tmp 2>/dev/null
