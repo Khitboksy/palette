@@ -77,8 +77,9 @@ the JSON file in `$EDITOR`, enter Edit Mode.
 command mode](images/search-command-blue.webp)
 - **Edit mode:** adjust hue, saturation, lightness, RGB channels, then
 write (save) the colour to your palette file.
-![Creating a new colour from a colour already in the palette and saving it
-as a new colour](images/editing-new-demo.gif)
+<video src="images/editing-new-demo.mp4" controls muted loop>
+  <img src="images/editing-new-demo.mp4" alt="Creating a new colour from a colour already in the palette and saving it as a new colour">
+</video>
 - **Pair Mode:** pick a colour from the palette to use as a reference/pair
 ![Screenshot of using 'p' to pick 'mauve' as the pair for 'base'](images/paired-base-mauve.webp)
 
@@ -123,10 +124,14 @@ When you press `z` in command or edit mode, focus returns to the fzf picker.
 - If you edited an **existing named colour**, pressing `w` shows
 `Overwrite "name"? [y/Name]`. Type `y` to overwrite, or type a new name to
 save as a different entry.
-![Editing an existing colour and overwriting it](images/editing-overwrite-demo.gif)
+<video src="images/editing-overwrite-demo.mp4" controls muted loop>
+  <img src="images/editing-overwrite-demo.mp4" alt="Editing an existing colour and overwriting it">
+</video>
 - If you used `i` (input hex) or selected **"Enter a new color"**, pressing `w`
 prompts `Name:` directly.
-![Selecting a random colour, and saving as a new entry](images/editing-random-demo.gif)
+<video src="images/editing-random-demo.mp4" controls muted loop>
+  <img src="images/editing-random-demo.mp4" alt="Selecting a random colour, and saving as a new entry">
+</video>
 - If you type a name that already exists while saving a new colour, the existing
 entry is overwritten (the JSON is updated in-place, not duplicated).
 
